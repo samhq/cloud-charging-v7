@@ -12,7 +12,7 @@ interface ChargeResult {
 
 async function connect(): Promise<ReturnType<typeof createClient>> {
     const url = `redis://${process.env.REDIS_HOST ?? "localhost"}:${process.env.REDIS_PORT ?? "6379"}`;
-    console.log(`Using redis URL ${url}`);
+    // console.log(`Using redis URL ${url}`);
     const client = createClient({ url });
     await client.connect();
     return client;
@@ -31,9 +31,10 @@ async function charge(account: string, charges: number): Promise<ChargeResult> {
     const client = await connect();
     try {
         const balance = parseInt((await client.get(`${account}/balance`)) ?? "");
-        if (balance >= charges) {
-            await client.set(`${account}/balance`, balance - charges);
-            const remainingBalance = parseInt((await client.get(`${account}/balance`)) ?? "");
+        if (balance >= charges && charges > 0) {
+            const remainingBalance = balance - charges;
+            await client.set(`${account}/balance`, remainingBalance);
+            // const remainingBalance = parseInt((await client.get(`${account}/balance`)) ?? "");
             return { isAuthorized: true, remainingBalance, charges };
         } else {
             return { isAuthorized: false, remainingBalance: balance, charges: 0 };
@@ -60,8 +61,13 @@ export function buildApp(): express.Application {
     app.post("/charge", async (req, res) => {
         try {
             const account = req.body.account ?? "account";
-            const result = await charge(account, req.body.charges ?? 10);
-            console.log(`Successfully charged account ${account}`);
+            const charges = req.body.charges ?? 0;
+            const result = await charge(account, charges);
+            if (result.isAuthorized) {
+                console.log(`Successfully charged account ${account}. Charges: ${result.charges}. Current balance: ${result.remainingBalance}`);
+            } else {
+                console.log(`Insufficient balance on account ${account} for the charge of ${charges}. Current balance: ${result.remainingBalance}`);
+            }
             res.status(200).json(result);
         } catch (e) {
             console.error("Error while charging account", e);
