@@ -61,7 +61,7 @@ export function buildApp(): express.Application {
     app.post("/charge", async (req, res) => {
         try {
             const account = req.body.account ?? "account";
-            const charges = req.body.charges ?? 0;
+            const charges = parseInt(req.body.charges) ?? 0;
             if (charges > 0) {
                 const result = await charge(account, charges);
                 if (result.isAuthorized) {
