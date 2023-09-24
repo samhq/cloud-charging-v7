@@ -62,13 +62,18 @@ export function buildApp(): express.Application {
         try {
             const account = req.body.account ?? "account";
             const charges = req.body.charges ?? 0;
-            const result = await charge(account, charges);
-            if (result.isAuthorized) {
-                console.log(`Successfully charged account ${account}. Charges: ${result.charges}. Current balance: ${result.remainingBalance}`);
+            if (charges > 0) {
+                const result = await charge(account, charges);
+                if (result.isAuthorized) {
+                    console.log(`Successfully charged account ${account}. Charges: ${result.charges}. Current balance: ${result.remainingBalance}`);
+                } else {
+                    console.log(`Insufficient balance on account ${account} for the charge of ${charges}. Current balance: ${result.remainingBalance}`);
+                }
+                res.status(200).json(result);
             } else {
-                console.log(`Insufficient balance on account ${account} for the charge of ${charges}. Current balance: ${result.remainingBalance}`);
+                console.error("Invalid charge amount");
+                res.status(400).json({ error: "Invalid charge amount" });
             }
-            res.status(200).json(result);
         } catch (e) {
             console.error("Error while charging account", e);
             res.status(500).json({ error: String(e) });
